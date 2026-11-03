@@ -1,14 +1,13 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
     MetaData,
     String,
-    true,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -43,11 +42,13 @@ class Slot(Base):
     __tablename__ = "slots"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    available: Mapped[bool | None] = mapped_column(Boolean, server_default=true())
 
 
 class Booking(Base):
     __tablename__ = "bookings"
+    # One booking per slot. The database enforces it, so two requests that
+    # arrive at the same moment cannot both win.
+    __table_args__ = (UniqueConstraint("slot_id"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     customer_name: Mapped[str] = mapped_column(String(100))
     phone: Mapped[str] = mapped_column(String(20))

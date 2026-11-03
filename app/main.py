@@ -5,8 +5,8 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator
-from sqlalchemy import select, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import exists, select, text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db import get_session
@@ -64,7 +64,7 @@ def service_out(s):
 
 
 def slot_out(s):
-    return {"id": s.id, "start_time": utc(s.start_time).isoformat(), "available": s.available}
+    return {"id": s.id, "start_time": utc(s.start_time).isoformat()}
 
 
 def booking_out(b):
@@ -106,7 +106,8 @@ def add_service(service: ServiceIn, db: Session = Depends(get_session)):
 
 @app.get("/slots")
 def list_slots(db: Session = Depends(get_session)):
-    rows = db.scalars(select(Slot).where(Slot.available.is_(True)).order_by(Slot.start_time, Slot.id))
+    booked = exists().where(Booking.slot_id == Slot.id)
+    rows = db.scalars(select(Slot).where(~booked).order_by(Slot.start_time, Slot.id))
     return [slot_out(s) for s in rows]
 
 
@@ -122,13 +123,16 @@ def add_slot(slot: SlotIn, db: Session = Depends(get_session)):
 def create_booking(booking: BookingIn, db: Session = Depends(get_session)):
     if db.get(Service, booking.service_id) is None:
         raise HTTPException(status_code=404, detail="Service not found")
-    slot = db.get(Slot, booking.slot_id)
-    if slot is None:
+    if db.get(Slot, booking.slot_id) is None:
         raise HTTPException(status_code=404, detail="Slot not found")
     row = Booking(**booking.model_dump())
     db.add(row)
-    slot.available = False
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # The UNIQUE rule on slot_id caught a second booking for this slot.
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Slot already booked")
     return booking_out(row)
 
 
