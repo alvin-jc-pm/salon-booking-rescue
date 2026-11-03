@@ -52,6 +52,8 @@ The database has no public address. It can only be reached over Railway's privat
 
 ### One-time setup
 
+Run every command in this section in **Git Bash** (installed with Git for Windows), from the project folder. Do not use PowerShell: Windows PowerShell 5.1 rewrites redirected output as UTF-16, which corrupts a database dump.
+
 1. Install the [Railway CLI](https://docs.railway.com/guides/cli), then run `railway login` and `railway link` (project `artistic-vitality`, environment `production`).
 2. `railway ssh` needs an SSH key registered with your Railway account. Create one with `ssh-keygen -t ed25519`, then register it with `railway ssh keys add`. Remove it later with `railway ssh keys remove` if you stop doing backups from that computer.
 3. Create a GPG key for backups, if you do not have one: `gpg --full-generate-key`. Keep the private key and its passphrase somewhere safe, such as a password manager. Without them the backups cannot be read.
@@ -107,7 +109,11 @@ See [README.md](README.md) for running it locally, the tests, and adding a migra
 These were outside the rescue plan, but a real salon would need them:
 
 - **Run the first manual backup and a test restore** (see above), so the routine is proven.
-- **Remove the demo data** before real customers use the system. The demo booking has been deleted. The three demo services and one slot are still there, because the API has no route to delete them. In the Railway dashboard, open the `Postgres` service, go to **Database**, and run `TRUNCATE bookings, slots, services RESTART IDENTITY;`
+- **Remove the demo data** before real customers use the system. The demo booking has been deleted. The three demo services and one slot are still there, because the API has no route to delete them. To clear them, run this in Git Bash after the one-time setup in the Backups section:
+
+  ```sh
+  railway ssh --service Postgres -- sh -c 'psql -h localhost -U "$PGUSER" -d "$PGDATABASE" -c "TRUNCATE bookings, slots, services RESTART IDENTITY;"'
+  ```
 - **One shared admin key.** Every staff member uses the same key. Separate staff logins would let you remove one person's access without changing everyone's key.
 - **No rate limiting.** Anyone can send many booking requests. Add limits at the app or a proxy before going public.
 - **One booking per slot, nothing more.** Slots do not belong to a stylist and do not account for how long a service takes. A salon with several chairs needs slots per stylist, and long services need to block the slots that follow.
