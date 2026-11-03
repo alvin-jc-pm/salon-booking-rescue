@@ -8,22 +8,18 @@ from fastapi.testclient import TestClient
 
 from app.config import EXAMPLE_ADMIN_KEY, admin_api_key
 from app.main import app
-from tests.helpers import ROOT, admin_headers
+from tests.helpers import ROOT, admin_headers, book, create_service, create_slot, future_time
 
 client = TestClient(app)
 
 
 @pytest.fixture
 def booking_id():
-    client.post("/services", json={"name": "Blow dry", "price": 30, "duration": 45}, headers=admin_headers())
-    service_id = client.get("/services").json()[-1]["id"]
-    client.post("/slots", json={"start_time": "2026-11-09T09:00"}, headers=admin_headers())
-    slot_id = client.get("/slots").json()[-1]["id"]
-    client.post(
-        "/bookings",
-        json={"customer_name": "Dana", "phone": "0803", "service_id": service_id, "slot_id": slot_id},
-    )
-    return client.get("/admin/bookings", headers=admin_headers()).json()[-1]["id"]
+    service = create_service(client, name="Blow dry")
+    slot = create_slot(client)
+    response = book(client, service["id"], slot["id"], customer_name="Dana")
+    assert response.status_code == 201
+    return response.json()["id"]
 
 
 def booking_ids():
@@ -64,8 +60,8 @@ def test_list_with_the_key_in_the_header_works():
 
 
 @pytest.mark.parametrize("path, body", [
-    ("/services", {"name": "Free haircut", "price": 0.01, "duration": 5}),
-    ("/slots", {"start_time": "2026-11-09T10:00"}),
+    ("/services", {"name": "Free haircut", "price": "0.01", "duration": 5}),
+    ("/slots", {"start_time": future_time()}),
 ])
 def test_creating_services_and_slots_needs_the_key(path, body):
     assert client.post(path, json=body).status_code == 401

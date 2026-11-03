@@ -5,9 +5,8 @@ import os
 from fastapi.testclient import TestClient
 
 import main
-from tests.helpers import admin_headers
+from tests.helpers import ROOT, book, create_service, create_slot
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 client = TestClient(main.app)
 
 
@@ -16,35 +15,28 @@ def service_names():
 
 
 def test_service_name_with_apostrophe_is_saved():
-    response = client.post("/services", json={"name": "Men's cut", "price": 20, "duration": 30}, headers=admin_headers())
-    assert response.status_code == 200
+    assert create_service(client, name="Men's cut")["name"] == "Men's cut"
     assert "Men's cut" in service_names()
 
 
 def test_customer_name_with_apostrophe_is_saved():
-    client.post("/services", json={"name": "Trim", "price": 15, "duration": 20}, headers=admin_headers())
-    service_id = client.get("/services").json()[-1]["id"]
-    client.post("/slots", json={"start_time": "2026-11-08T11:00"}, headers=admin_headers())
-    slot_id = client.get("/slots").json()[-1]["id"]
-    response = client.post(
-        "/bookings",
-        json={"customer_name": "Siobhan O'Neil", "phone": "0800", "service_id": service_id, "slot_id": slot_id},
-    )
-    assert response.status_code == 200
+    service = create_service(client, name="Trim")
+    slot = create_slot(client)
+    response = book(client, service["id"], slot["id"], customer_name="Siobhan O'Neil")
+    assert response.status_code == 201
+    assert response.json()["customer_name"] == "Siobhan O'Neil"
 
 
 def test_sql_in_service_name_is_stored_as_plain_text():
     payload = "x', 0, 0); DELETE FROM bookings; --"
-    response = client.post("/services", json={"name": payload, "price": 1, "duration": 1}, headers=admin_headers())
-    assert response.status_code == 200
+    create_service(client, name=payload)
     assert payload in service_names()
 
 
 def test_single_statement_injection_does_not_change_other_rows():
     # A payload that SQLite's one-statement rule would not have stopped.
-    client.post("/services", json={"name": "Colour", "price": 40, "duration": 60}, headers=admin_headers())
     payload = "y', 0, 0), ('injected', 0, 0) --"
-    client.post("/services", json={"name": payload, "price": 1, "duration": 1}, headers=admin_headers())
+    create_service(client, name=payload)
     names = service_names()
     assert payload in names
     assert "injected" not in names

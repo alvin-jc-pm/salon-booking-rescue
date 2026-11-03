@@ -1,4 +1,15 @@
-from sqlalchemy import Boolean, Float, Integer, MetaData, Text, true
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    true,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Stable constraint names, so later migrations can find and change them.
@@ -17,23 +28,28 @@ class Base(DeclarativeBase):
 
 class Service(Base):
     __tablename__ = "services"
+    __table_args__ = (
+        CheckConstraint("price_cents > 0", name="price_cents_positive"),
+        CheckConstraint("duration > 0", name="duration_positive"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str | None] = mapped_column(Text)
-    price: Mapped[float | None] = mapped_column(Float)
-    duration: Mapped[int | None] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String(100))
+    # Money is stored as whole cents. Floats cannot hold 0.10 exactly.
+    price_cents: Mapped[int] = mapped_column(Integer)
+    duration: Mapped[int] = mapped_column(Integer)
 
 
 class Slot(Base):
     __tablename__ = "slots"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    start_time: Mapped[str | None] = mapped_column(Text)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     available: Mapped[bool | None] = mapped_column(Boolean, server_default=true())
 
 
 class Booking(Base):
     __tablename__ = "bookings"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    customer_name: Mapped[str | None] = mapped_column(Text)
-    phone: Mapped[str | None] = mapped_column(Text)
-    service_id: Mapped[int | None] = mapped_column(Integer)
-    slot_id: Mapped[int | None] = mapped_column(Integer)
+    customer_name: Mapped[str] = mapped_column(String(100))
+    phone: Mapped[str] = mapped_column(String(20))
+    service_id: Mapped[int] = mapped_column(ForeignKey("services.id"))
+    slot_id: Mapped[int] = mapped_column(ForeignKey("slots.id"))
