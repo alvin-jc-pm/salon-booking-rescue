@@ -15,7 +15,7 @@ The data lives in the Postgres service, not in the app container. Redeploying or
 
 ## How a deploy works
 
-1. A push to `main` on GitHub starts a Railway build from the Dockerfile.
+1. A push to `main` on GitHub starts a Railway build from the Dockerfile, but only after CI has passed (**Wait for CI** is on).
 2. The new container runs `alembic upgrade head`. If a migration fails, the container stops and the old version keeps serving.
 3. The app starts on the port Railway gives it in `PORT`.
 4. Railway waits for `/health` to return 200 before it sends traffic to the new version ([railway.json](railway.json)). `/health` also checks the database.
@@ -53,7 +53,8 @@ The database has no public address. It can only be reached over Railway's privat
 ### One-time setup
 
 1. Install the [Railway CLI](https://docs.railway.com/guides/cli), then run `railway login` and `railway link` (project `artistic-vitality`, environment `production`).
-2. Create a GPG key for backups, if you do not have one: `gpg --full-generate-key`. Keep the private key and its passphrase somewhere safe, such as a password manager. Without them the backups cannot be read.
+2. `railway ssh` needs an SSH key registered with your Railway account. Create one with `ssh-keygen -t ed25519`, then register it with `railway ssh keys add`. Remove it later with `railway ssh keys remove` if you stop doing backups from that computer.
+3. Create a GPG key for backups, if you do not have one: `gpg --full-generate-key`. Keep the private key and its passphrase somewhere safe, such as a password manager. Without them the backups cannot be read.
 
 ### Taking a backup (weekly, and before any risky change)
 
@@ -106,8 +107,7 @@ See [README.md](README.md) for running it locally, the tests, and adding a migra
 These were outside the rescue plan, but a real salon would need them:
 
 - **Run the first manual backup and a test restore** (see above), so the routine is proven.
-- **Make Railway wait for CI.** Right now Railway deploys a push even if the tests fail. In the `salon-booking-rescue` service settings, turn on **Wait for CI**.
-- **Remove the demo data** created by the after-check before real customers use the system.
+- **Remove the demo data** before real customers use the system. The demo booking has been deleted. The three demo services and one slot are still there, because the API has no route to delete them. In the Railway dashboard, open the `Postgres` service, go to **Database**, and run `TRUNCATE bookings, slots, services RESTART IDENTITY;`
 - **One shared admin key.** Every staff member uses the same key. Separate staff logins would let you remove one person's access without changing everyone's key.
 - **No rate limiting.** Anyone can send many booking requests. Add limits at the app or a proxy before going public.
 - **One booking per slot, nothing more.** Slots do not belong to a stylist and do not account for how long a service takes. A salon with several chairs needs slots per stylist, and long services need to block the slots that follow.
