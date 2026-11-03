@@ -48,7 +48,7 @@ Railway redeploys with the new key. The old key stops working as soon as the new
 
 The database has no public address. It can only be reached over Railway's private network, and the routine below keeps it that way.
 
-**Status:** a backup was taken with this routine on 2026-11-03 and checked as complete, before the demo data was cleared. That dump held only demo data, so it was not encrypted. A test restore has not been done yet.
+**Status:** a backup was taken with this routine on 2026-11-03 and checked as complete, before the demo data was cleared. That dump held only demo data, so it was not encrypted. It was restored into a scratch database the same day to prove it works.
 
 ### One-time setup
 
@@ -72,11 +72,30 @@ rm salon-$DAY.sql
 
 ### Restoring
 
-Restores are rare, so this uses a temporary public address:
+This also runs in Git Bash over Railway's private network, so the database never needs a public address. For an encrypted backup, decrypt it first: `gpg --output salon-backup.sql --decrypt salon-<date>.sql.gpg`.
 
-1. In the `Postgres` service, go to **Settings**, then **Networking**, and add a **TCP Proxy**. Copy `DATABASE_PUBLIC_URL` from its **Variables** tab.
-2. Restore into an empty database: `gpg --decrypt salon-<date>.sql.gpg | psql "<DATABASE_PUBLIC_URL>"`
-3. Remove the TCP proxy again, so the database is private once more.
+**Check a backup (do this every few months).** This loads the backup into a separate scratch database and leaves the live one alone:
+
+```sh
+railway ssh --service Postgres -- sh -c 'createdb -h localhost -U "$PGUSER" restore_test'
+cat salon-backup.sql | railway ssh --service Postgres -- sh -c 'psql -q -h localhost -U "$PGUSER" -d restore_test'
+railway ssh --service Postgres -- sh -c 'psql -h localhost -U "$PGUSER" -d restore_test -c "SELECT (SELECT count(*) FROM services) AS services, (SELECT count(*) FROM slots) AS slots, (SELECT count(*) FROM bookings) AS bookings;"'
+railway ssh --service Postgres -- sh -c 'dropdb -h localhost -U "$PGUSER" restore_test'
+```
+
+The counts should match what was in the database when the backup was taken.
+
+**Restore for real (only if the live data is lost or broken).** Take a fresh backup of whatever is left first, in case you need it. The dump creates its own tables, so the live tables must be removed before loading it:
+
+```sh
+railway ssh --service Postgres -- sh -c 'psql -h localhost -U "$PGUSER" -d "$PGDATABASE" -c "DROP TABLE IF EXISTS bookings, slots, services, alembic_version;"'
+cat salon-backup.sql | railway ssh --service Postgres -- sh -c 'psql -q -h localhost -U "$PGUSER" -d "$PGDATABASE"'
+railway redeploy --service salon-booking-rescue --yes
+```
+
+Then open `/health` and `/services` in a browser to confirm the app is back.
+
+**Tested:** on 2026-11-03 the backup taken that day was loaded into a scratch database and showed the expected counts (3 services, 1 slot, 0 bookings). The "restore for real" commands have not been run, because the live data has never needed restoring.
 
 ### For a real client
 
@@ -108,7 +127,6 @@ See [README.md](README.md) for running it locally, the tests, and adding a migra
 
 These were outside the rescue plan, but a real salon would need them:
 
-- **Do a test restore** (see above), so the restore steps are proven too.
 - **One shared admin key.** Every staff member uses the same key. Separate staff logins would let you remove one person's access without changing everyone's key.
 - **No rate limiting.** Anyone can send many booking requests. Add limits at the app or a proxy before going public.
 - **One booking per slot, nothing more.** Slots do not belong to a stylist and do not account for how long a service takes. A salon with several chairs needs slots per stylist, and long services need to block the slots that follow.
