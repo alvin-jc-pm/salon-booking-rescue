@@ -21,11 +21,13 @@ def test_service_name_with_apostrophe_is_saved():
 
 
 def test_customer_name_with_apostrophe_is_saved():
+    client.post("/services", json={"name": "Trim", "price": 15, "duration": 20})
+    service_id = client.get("/services").json()[-1]["id"]
     client.post("/slots", json={"start_time": "2026-11-08T11:00"})
     slot_id = client.get("/slots").json()[-1]["id"]
     response = client.post(
         "/bookings",
-        json={"customer_name": "Siobhan O'Neil", "phone": "0800", "service_id": 1, "slot_id": slot_id},
+        json={"customer_name": "Siobhan O'Neil", "phone": "0800", "service_id": service_id, "slot_id": slot_id},
     )
     assert response.status_code == 200
 
@@ -47,8 +49,16 @@ def test_single_statement_injection_does_not_change_other_rows():
     assert "injected" not in names
 
 
-def test_no_query_is_built_with_an_f_string():
-    tree = ast.parse(open(os.path.join(ROOT, "main.py"), encoding="utf-8").read())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and getattr(node.func, "attr", "") == "execute":
-            assert not isinstance(node.args[0], ast.JoinedStr), f"f-string SQL on line {node.lineno}"
+def python_files():
+    yield os.path.join(ROOT, "main.py")
+    for folder, _, files in os.walk(os.path.join(ROOT, "app")):
+        yield from (os.path.join(folder, f) for f in files if f.endswith(".py"))
+
+
+def test_no_query_is_built_from_formatted_strings():
+    for path in python_files():
+        tree = ast.parse(open(path, encoding="utf-8").read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and getattr(node.func, "attr", getattr(node.func, "id", "")) in ("execute", "text"):
+                first = node.args[0] if node.args else None
+                assert not isinstance(first, (ast.JoinedStr, ast.BinOp)), f"formatted SQL in {path} line {node.lineno}"
