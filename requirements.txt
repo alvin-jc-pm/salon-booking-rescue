@@ -1,2 +1,30 @@
-fastapi
-uvicorn
+# Exact versions, so every install gets the same code.
+# To upgrade: change a version here, run the tests, then commit.
+
+# Web framework and server
+fastapi==0.162.0
+starlette==1.10.0
+pydantic==2.14.2
+pydantic_core==2.50.2
+uvicorn==0.54.0
+
+# Database, migrations and PostgreSQL driver
+SQLAlchemy==2.1.6
+alembic==1.20.1
+psycopg==3.3.7
+psycopg-binary==3.3.7
+
+# Needed by the packages above
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.16.0
+click==8.5.0
+colorama==0.4.6; sys_platform == "win32"
+h11==0.16.0
+idna==3.20
+Mako==1.4.3
+MarkupSafe==3.0.4
+opentelemetry-api==1.45.2
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+tzdata==2026.6
