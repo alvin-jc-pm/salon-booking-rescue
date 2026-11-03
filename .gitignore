@@ -1,3 +1,5 @@
 salon.db
 __pycache__/
 .venv/
+evidence/run/
+server.log

@@ -1,0 +1,84 @@
+1. Host sets PORT=8080 and probes it
+   GET localhost:8080/
+   -> NO RESPONSE  URLError: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>
+
+2. App is actually on 127.0.0.1:8000
+   GET 127.0.0.1:8000/
+   -> 200  {"message":"Welcome to the Salon Booking API"}
+
+3. Health check a host would call
+   GET 127.0.0.1:8000/health
+   -> 404  {"detail":"Not Found"}
+
+4. Add a normal service
+   POST 127.0.0.1:8000/services  body={"name": "Haircut", "price": 25, "duration": 30}
+   -> 200  {"status":"service added"}
+
+5. Add a service with an apostrophe
+   POST 127.0.0.1:8000/services  body={"name": "Men's cut", "price": 20, "duration": 30}
+   -> 500  Internal Server Error
+
+6. Add a time slot
+   POST 127.0.0.1:8000/slots  body={"start_time": "2026-11-08T10:00"}
+   -> 200  {"status":"slot added"}
+
+7. Book the slot
+   POST 127.0.0.1:8000/bookings  body={"customer_name": "Ada", "phone": "0800", "service_id": 1, "slot_id": 1}
+   -> 200  {"status":"booked"}
+
+8. Book the same slot again
+   POST 127.0.0.1:8000/bookings  body={"customer_name": "Ben", "phone": "0801", "service_id": 1, "slot_id": 1}
+   -> 200  {"status":"booked"}
+
+9. Book a service that does not exist
+   POST 127.0.0.1:8000/bookings  body={"customer_name": "Cy", "phone": "0802", "service_id": 999, "slot_id": 1}
+   -> 200  {"status":"booked"}
+
+10. Slot time that is not a time
+   POST 127.0.0.1:8000/slots  body={"start_time": "whenever"}
+   -> 200  {"status":"slot added"}
+
+11. Admin list with the key from the source code
+   GET 127.0.0.1:8000/admin/bookings?key=admin123
+   -> 200  [{"id":1,"customer_name":"Ada","phone":"0800","service_id":1,"slot_id":1},{"id":2,"customer_name":"Ben","phone":"0801","service_id":1,"slot_id":1},{"id":3,"cust
+
+12. Admin delete with no key at all
+   DELETE 127.0.0.1:8000/admin/bookings/1
+   -> 200  {"status":"deleted"}
+
+13. SQL injection attempt through the service name
+   POST 127.0.0.1:8000/services  body={"name": "x', 0, 0); DELETE FROM bookings; --", "price": 1, "duration": 1}
+   -> 500  Internal Server Error
+
+14. Bookings after the injection attempt
+   GET 127.0.0.1:8000/admin/bookings?key=admin123
+   -> 200  [{"id":2,"customer_name":"Ben","phone":"0801","service_id":1,"slot_id":1},{"id":3,"customer_name":"Cy","phone":"0802","service_id":999,"slot_id":1}]
+
+SERVER LOG (last lines):
+  File "<repo>\.venv\Lib\site-packages\fastapi\routing.py", line 745, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\fastapi\routing.py", line 374, in run_endpoint_function
+    return await run_in_threadpool(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\starlette\concurrency.py", line 34, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\anyio\to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2779, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 1124, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\.venv\Lib\site-packages\fastapi\telemetry\_api.py", line 244, in _run_sync_endpoint
+    return function(**arguments)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "<repo>\main.py", line 62, in add_service
+    conn.execute(f"INSERT INTO services (name, price, duration) VALUES ('{service.name}', {service.price}, {service.duration})")
+sqlite3.ProgrammingError: You can only execute one statement at a time.
+INFO:     127.0.0.1:63107 - "GET /admin/bookings?key=admin123 HTTP/1.1" 200 OK
+
+salon.db created next to the code: True
