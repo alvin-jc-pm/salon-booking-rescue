@@ -17,3 +17,18 @@ def database_url(env=os.environ):
         if url.startswith(prefix):
             return "postgresql+psycopg://" + url[len(prefix):]
     return url
+
+
+EXAMPLE_ADMIN_KEY = "replace-with-a-long-random-string"
+
+
+def admin_api_key(env=os.environ):
+    """The key staff send in the X-Admin-Key header, from ADMIN_API_KEY."""
+    key = env.get("ADMIN_API_KEY", "")
+    if not key:
+        raise RuntimeError("ADMIN_API_KEY is not set. See .env.example.")
+    if key == EXAMPLE_ADMIN_KEY:
+        raise RuntimeError("ADMIN_API_KEY is still the example value. Generate a real one.")
+    if len(key) < 24:
+        raise RuntimeError("ADMIN_API_KEY must be at least 24 characters.")
+    return key

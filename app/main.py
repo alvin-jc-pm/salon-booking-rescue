@@ -7,10 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.models import Booking, Service, Slot
+from app.security import require_admin
 
 app = FastAPI(title="Salon Booking API")
-
-ADMIN_KEY = "admin123"
 
 
 class ServiceIn(BaseModel):
@@ -53,7 +52,7 @@ def list_services(db: Session = Depends(get_session)):
     return [as_dict(s) for s in db.scalars(select(Service).order_by(Service.id))]
 
 
-@app.post("/services")
+@app.post("/services", dependencies=[Depends(require_admin)])
 def add_service(service: ServiceIn, db: Session = Depends(get_session)):
     db.add(Service(name=service.name, price=service.price, duration=service.duration))
     db.commit()
@@ -66,7 +65,7 @@ def list_slots(db: Session = Depends(get_session)):
     return [as_dict(s) for s in rows]
 
 
-@app.post("/slots")
+@app.post("/slots", dependencies=[Depends(require_admin)])
 def add_slot(slot: SlotIn, db: Session = Depends(get_session)):
     db.add(Slot(start_time=slot.start_time))
     db.commit()
@@ -84,14 +83,12 @@ def create_booking(booking: BookingIn, db: Session = Depends(get_session)):
     return {"status": "booked"}
 
 
-@app.get("/admin/bookings")
-def admin_bookings(key: str, db: Session = Depends(get_session)):
-    if key != ADMIN_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+@app.get("/admin/bookings", dependencies=[Depends(require_admin)])
+def admin_bookings(db: Session = Depends(get_session)):
     return [as_dict(b) for b in db.scalars(select(Booking).order_by(Booking.id))]
 
 
-@app.delete("/admin/bookings/{booking_id}")
+@app.delete("/admin/bookings/{booking_id}", dependencies=[Depends(require_admin)])
 def admin_delete_booking(booking_id: int, db: Session = Depends(get_session)):
     db.execute(delete(Booking).where(Booking.id == booking_id))
     db.commit()

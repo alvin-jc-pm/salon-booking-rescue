@@ -15,3 +15,7 @@ def alembic_config(url=None):
 
 def sqlite_url(folder, name):
     return "sqlite:///" + os.path.join(str(folder), name).replace("\\", "/")
+
+
+def admin_headers():
+    return {"X-Admin-Key": os.environ["ADMIN_API_KEY"]}
