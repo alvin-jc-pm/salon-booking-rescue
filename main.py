@@ -66,7 +66,10 @@ def list_services():
 @app.post("/services")
 def add_service(service: Service):
     conn = get_db()
-    conn.execute(f"INSERT INTO services (name, price, duration) VALUES ('{service.name}', {service.price}, {service.duration})")
+    conn.execute(
+        "INSERT INTO services (name, price, duration) VALUES (?, ?, ?)",
+        (service.name, service.price, service.duration),
+    )
     conn.commit()
     return {"status": "service added"}
 
@@ -81,7 +84,7 @@ def list_slots():
 @app.post("/slots")
 def add_slot(slot: Slot):
     conn = get_db()
-    conn.execute(f"INSERT INTO slots (start_time) VALUES ('{slot.start_time}')")
+    conn.execute("INSERT INTO slots (start_time) VALUES (?)", (slot.start_time,))
     conn.commit()
     return {"status": "slot added"}
 
@@ -89,13 +92,14 @@ def add_slot(slot: Slot):
 @app.post("/bookings")
 def create_booking(booking: Booking):
     conn = get_db()
-    slot = conn.execute(f"SELECT * FROM slots WHERE id = {booking.slot_id}").fetchone()
+    slot = conn.execute("SELECT * FROM slots WHERE id = ?", (booking.slot_id,)).fetchone()
     if slot is None:
         raise HTTPException(status_code=404, detail="Slot not found")
     conn.execute(
-        f"INSERT INTO bookings (customer_name, phone, service_id, slot_id) VALUES ('{booking.customer_name}', '{booking.phone}', {booking.service_id}, {booking.slot_id})"
+        "INSERT INTO bookings (customer_name, phone, service_id, slot_id) VALUES (?, ?, ?, ?)",
+        (booking.customer_name, booking.phone, booking.service_id, booking.slot_id),
     )
-    conn.execute(f"UPDATE slots SET available = 0 WHERE id = {booking.slot_id}")
+    conn.execute("UPDATE slots SET available = 0 WHERE id = ?", (booking.slot_id,))
     conn.commit()
     return {"status": "booked"}
 
@@ -112,7 +116,7 @@ def admin_bookings(key: str):
 @app.delete("/admin/bookings/{booking_id}")
 def admin_delete_booking(booking_id: int):
     conn = get_db()
-    conn.execute(f"DELETE FROM bookings WHERE id = {booking_id}")
+    conn.execute("DELETE FROM bookings WHERE id = ?", (booking_id,))
     conn.commit()
     return {"status": "deleted"}
 
