@@ -1,0 +1,66 @@
+Run on 2026-11-03T13:57Z against https://salon-booking-rescue-production.up.railway.app
+(Railway sets PORT=8080 and provides the PostgreSQL database.)
+
+[ok  ] 1. Host sets PORT and probes it
+   GET /
+   -> 200  (expected 200)  {"message":"Welcome to the Salon Booking API"}
+
+[ok  ] 3. Health check a host would call
+   GET /health
+   -> 200  (expected 200)  {"status":"ok"}
+
+[ok  ] 4. Add a normal service
+   POST /services  body={"name": "Haircut 1eaa67", "price": "25.00", "duration": 30}
+   -> 201  (expected 201)  {"id":1,"name":"Haircut 1eaa67","price":"25.00","price_cents":2500,"duration":30}
+
+[ok  ] 5. Add a service with an apostrophe
+   POST /services  body={"name": "Men's cut 1eaa67", "price": "20.00", "duration": 30}
+   -> 201  (expected 201)  {"id":2,"name":"Men's cut 1eaa67","price":"20.00","price_cents":2000,"duration":30}
+
+[ok  ] 6. Add a time slot
+   POST /slots  body={"start_time": "2026-12-03T13:57:33+00:00"}
+   -> 201  (expected 201)  {"id":1,"start_time":"2026-12-03T13:57:33+00:00"}
+
+[ok  ] 7. Book the slot
+   POST /bookings  body={"customer_name": "Ada", "phone": "0800 000 001", "service_id": 1, "slot_id": 1}
+   -> 201  (expected 201)  {"id":1,"customer_name":"Ada","phone":"0800 000 001","service_id":1,"slot_id":1}
+
+[ok  ] 8. Book the same slot again
+   POST /bookings  body={"customer_name": "Ben", "phone": "0800 000 002", "service_id": 1, "slot_id": 1}
+   -> 409  (expected 409)  {"detail":"Slot already booked"}
+
+[ok  ] 9. Book a service that does not exist
+   POST /bookings  body={"customer_name": "Cy", "phone": "0800 000 003", "service_id": 999999, "slot_id": 1}
+   -> 404  (expected 404)  {"detail":"Service not found"}
+
+[ok  ] 10. Slot time that is not a time
+   POST /slots  body={"start_time": "whenever"}
+   -> 422  (expected 422)  {"detail":[{"type":"datetime_from_date_parsing","loc":["body","start_time"],"msg":"Input should be a valid datetime or date, input is too short","input":"whenev
+
+[ok  ] 11. Admin list with the old key from the source code
+   GET /admin/bookings?key=admin123
+   -> 401  (expected 401)  {"detail":"Missing or wrong X-Admin-Key header"}
+
+[ok  ] 11b. Admin list with the real key, in a header
+   GET /admin/bookings
+   -> 200  (expected 200)  [{"id":1,"customer_name":"Ada","phone":"0800 000 001","service_id":1,"slot_id":1}]
+
+[ok  ] 12. Admin delete with no key at all
+   DELETE /admin/bookings/1
+   -> 401  (expected 401)  {"detail":"Missing or wrong X-Admin-Key header"}
+
+[ok  ] 13. SQL injection attempt through the service name
+   POST /services  body={"name": "x', 0, 0); DELETE FROM bookings; -- 1eaa67", "price": "1.00", "duration": 5}
+   -> 201  (expected 201)  {"id":3,"name":"x', 0, 0); DELETE FROM bookings; -- 1eaa67","price":"1.00","price_cents":100,"duration":5}
+
+[ok  ] 14. Bookings after the injection attempt
+   GET /admin/bookings
+   -> 200  (expected 200)  [{"id":1,"customer_name":"Ada","phone":"0800 000 001","service_id":1,"slot_id":1}]
+
+[ok  ] 13b. Injection text was saved as plain text
+   -> True  (expected True)
+
+[ok  ] 14b. Ada's booking survived steps 12 and 13
+   -> True  (expected True)
+
+16 of 16 checks passed.

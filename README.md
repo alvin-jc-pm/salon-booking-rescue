@@ -6,6 +6,8 @@ An AI coding assistant wrote a small FastAPI booking API for a salon from a sing
 
 This repository fixes it one problem at a time, with one commit per fix and a test proving each failure is gone. The untouched prototype is the commit tagged `before`.
 
+The rescued version runs on Railway with a managed PostgreSQL database: https://salon-booking-rescue-production.up.railway.app (try `/health` or `/docs`). [HANDOVER.md](HANDOVER.md) explains how it is deployed, backed up and maintained.
+
 ## Before and after
 
 | # | What was tried | Before | After |
