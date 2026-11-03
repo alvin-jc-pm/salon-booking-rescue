@@ -18,7 +18,19 @@ The data lives in the Postgres service, not in the app container. Redeploying or
 1. A push to `main` on GitHub starts a Railway build from the Dockerfile, but only after CI has passed (**Wait for CI** is on).
 2. The new container runs `alembic upgrade head`. If a migration fails, the container stops and the old version keeps serving.
 3. The app starts on the port Railway gives it in `PORT`.
-4. Railway waits for `/health` to return 200 before it sends traffic to the new version ([railway.json](railway.json)). `/health` also checks the database.
+4. Railway waits for `/health` to return 200 before it sends traffic to the new version. `/health` also checks the database.
+
+These deploy settings are saved on the `salon-booking-rescue` service in Railway, under **Settings**. They are not in a file in this repository:
+
+| Setting | Value |
+|---|---|
+| Dockerfile path | `Dockerfile` |
+| Healthcheck path | `/health` |
+| Healthcheck timeout | 60 seconds |
+| Restart policy | On failure, up to 5 retries |
+| Wait for CI | On |
+
+Railway used to read these from a `railway.json` file, a format it stops supporting on 2026-12-01. Its replacement needs a Node.js package in the repository, which is a lot to add to a Python project for five settings. So they were moved onto the service instead. If someone changes them in the dashboard, update this table.
 
 GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the tests on PostgreSQL and SQLite, builds the Docker image, and replays every request from [BEFORE.md](BEFORE.md) against it.
 
