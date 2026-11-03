@@ -48,7 +48,7 @@ Railway redeploys with the new key. The old key stops working as soon as the new
 
 The database has no public address. It can only be reached over Railway's private network, and the routine below keeps it that way.
 
-**Status: these commands are written out but have not been run yet.** Do the first backup and a test restore before relying on them.
+**Status:** a backup was taken with this routine on 2026-11-03 and checked as complete, before the demo data was cleared. That dump held only demo data, so it was not encrypted. A test restore has not been done yet.
 
 ### One-time setup
 
@@ -108,12 +108,7 @@ See [README.md](README.md) for running it locally, the tests, and adding a migra
 
 These were outside the rescue plan, but a real salon would need them:
 
-- **Run the first manual backup and a test restore** (see above), so the routine is proven.
-- **Remove the demo data** before real customers use the system. The demo booking has been deleted. The three demo services and one slot are still there, because the API has no route to delete them. To clear them, run this in Git Bash after the one-time setup in the Backups section:
-
-  ```sh
-  railway ssh --service Postgres -- sh -c 'psql -h localhost -U "$PGUSER" -d "$PGDATABASE" -c "TRUNCATE bookings, slots, services RESTART IDENTITY;"'
-  ```
+- **Do a test restore** (see above), so the restore steps are proven too.
 - **One shared admin key.** Every staff member uses the same key. Separate staff logins would let you remove one person's access without changing everyone's key.
 - **No rate limiting.** Anyone can send many booking requests. Add limits at the app or a proxy before going public.
 - **One booking per slot, nothing more.** Slots do not belong to a stylist and do not account for how long a service takes. A salon with several chairs needs slots per stylist, and long services need to block the slots that follow.

@@ -4,3 +4,8 @@ __pycache__/
 evidence/run/
 server.log
 .env
+
+# Database dumps hold customer data. Never commit them.
+*.sql
+*.sql.gpg
+*.dump
