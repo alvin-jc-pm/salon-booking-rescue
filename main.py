@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import sqlite3
@@ -47,6 +49,11 @@ class Booking(BaseModel):
 @app.get("/")
 def home():
     return {"message": "Welcome to the Salon Booking API"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/services")
@@ -110,6 +117,13 @@ def admin_delete_booking(booking_id: int):
     return {"status": "deleted"}
 
 
+def server_options(env=os.environ):
+    """Where to listen. Hosts tell the app which port to use through PORT."""
+    return env.get("HOST", "0.0.0.0"), int(env.get("PORT", "8000"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+    host, port = server_options()
+    uvicorn.run(app, host=host, port=port)
