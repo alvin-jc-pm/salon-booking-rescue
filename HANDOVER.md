@@ -44,23 +44,46 @@ Railway redeploys with the new key. The old key stops working as soon as the new
 
 ## Backups
 
-**Action needed: backups are not switched on yet.** Railway's command line tool cannot schedule them, so this has to be done in the dashboard:
+**Backups are manual, by choice.** This deployment is a portfolio demo and holds only demo data. The Railway plan it runs on has no built-in backups, and automating them would add cost and moving parts to protect nothing real. So backups are a manual routine. The design for a real client is further down.
 
-1. Open the `Postgres` service and go to the **Backups** tab.
-2. Turn on a **daily** schedule. Add weekly as well if your plan offers it.
-3. Click **Backup now** once, so there is a first copy straight away.
+The database has no public address. It can only be reached over Railway's private network, and the routine below keeps it that way.
 
-Which schedules you can choose, and how long backups are kept, depends on the Railway plan.
+**Status: these commands are written out but have not been run yet.** Do the first backup and a test restore before relying on them.
 
-**To restore**, open the **Backups** tab, pick a backup, and click **Restore**. Railway restores it into the same service. Do a test restore at least once, so you know it works before you need it.
+### One-time setup
 
-**A one-off copy on your own machine** is worth taking before any risky change. It needs `pg_dump` installed, and you need the public database URL from the `Postgres` service's **Variables** tab (`DATABASE_PUBLIC_URL`):
+1. Install the [Railway CLI](https://docs.railway.com/guides/cli), then run `railway login` and `railway link` (project `artistic-vitality`, environment `production`).
+2. Create a GPG key for backups, if you do not have one: `gpg --full-generate-key`. Keep the private key and its passphrase somewhere safe, such as a password manager. Without them the backups cannot be read.
+
+### Taking a backup (weekly, and before any risky change)
 
 ```sh
-pg_dump --format=custom --file=salon-$(date +%F).dump "<DATABASE_PUBLIC_URL>"
+DAY=$(date +%F)
+railway ssh --service Postgres -- sh -c 'pg_dump --no-owner --no-privileges -h localhost -U "$PGUSER" -d "$PGDATABASE"' > salon-$DAY.sql
+grep -q "PostgreSQL database dump complete" salon-$DAY.sql && echo "dump is complete"
+gpg --encrypt --recipient "<your GPG key id>" salon-$DAY.sql
+rm salon-$DAY.sql
 ```
 
-The dump holds customers' names and phone numbers. Store it like any other personal data and delete it when you no longer need it.
+`pg_dump` runs inside the Postgres service, so the database never needs a public address. The dump holds customers' names and phone numbers, so only the encrypted `.sql.gpg` file is kept. Store it somewhere other than this computer and never in this repository. Delete old copies when they are no longer needed.
+
+### Restoring
+
+Restores are rare, so this uses a temporary public address:
+
+1. In the `Postgres` service, go to **Settings**, then **Networking**, and add a **TCP Proxy**. Copy `DATABASE_PUBLIC_URL` from its **Variables** tab.
+2. Restore into an empty database: `gpg --decrypt salon-<date>.sql.gpg | psql "<DATABASE_PUBLIC_URL>"`
+3. Remove the TCP proxy again, so the database is private once more.
+
+### For a real client
+
+With real customer data, backups must not depend on someone remembering to take them. The design would be:
+
+- A small **scheduled Railway service** in the same project. Each night it runs `pg_dump` over the private network, encrypts the dump with the client's public GPG key, and uploads it to a storage bucket the client owns (for example Cloudflare R2 or Backblaze B2), with a retention rule such as 30 daily and 12 monthly copies.
+- An alert if a night's backup is missing, and a test restore every quarter.
+- Or, more simply, a Railway plan with built-in backups, if its retention is enough.
+
+Running backups from GitHub Actions was considered and rejected. It needs the database on the internet, and the dumps would sit next to a public repository.
 
 ## Checking that it works
 
@@ -82,7 +105,7 @@ See [README.md](README.md) for running it locally, the tests, and adding a migra
 
 These were outside the rescue plan, but a real salon would need them:
 
-- **Turn on backups** (see above).
+- **Run the first manual backup and a test restore** (see above), so the routine is proven.
 - **Make Railway wait for CI.** Right now Railway deploys a push even if the tests fail. In the `salon-booking-rescue` service settings, turn on **Wait for CI**.
 - **Remove the demo data** created by the after-check before real customers use the system.
 - **One shared admin key.** Every staff member uses the same key. Separate staff logins would let you remove one person's access without changing everyone's key.
