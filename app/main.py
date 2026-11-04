@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from sqlalchemy import exists, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -14,6 +15,8 @@ from app.models import Booking, Service, Slot
 from app.security import require_admin
 
 app = FastAPI(title="Salon Booking API")
+
+BOOKING_PAGE = Path(__file__).parent / "static" / "book.html"
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 Phone = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\+?[0-9 ()-]{6,20}$")]
@@ -79,7 +82,13 @@ def booking_out(b):
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to the Salon Booking API"}
+    return {"message": "Welcome to the Salon Booking API", "booking_page": "/book", "docs": "/docs"}
+
+
+@app.get("/book", include_in_schema=False)
+def booking_page():
+    # One static page. It talks to the same public endpoints as any client.
+    return FileResponse(BOOKING_PAGE, media_type="text/html")
 
 
 @app.get("/health")

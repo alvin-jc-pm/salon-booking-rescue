@@ -8,6 +8,8 @@ This repository fixes it one problem at a time, with one commit per fix and a te
 
 The rescued version runs on Railway with a managed PostgreSQL database: https://salon-booking-rescue-production.up.railway.app (try `/health` or `/docs`). [HANDOVER.md](HANDOVER.md) explains how it is deployed, backed up and maintained.
 
+Customers book at [`/book`](https://salon-booking-rescue-production.up.railway.app/book): pick a service, pick a free time, enter a name and phone number. It is one page of plain HTML, CSS and JavaScript ([app/static/book.html](app/static/book.html)) that calls the same public API as any other client, with no framework and no build step. It shows times in the visitor's time zone, explains every error the API can return in plain words, and reloads the free times when someone else takes a slot first.
+
 ## Before and after
 
 | # | What was tried | Before | After |
@@ -51,7 +53,15 @@ alembic upgrade head             # create or update the tables
 python main.py                   # serves on http://localhost:8000
 ```
 
-Interactive API docs are at `http://localhost:8000/docs`.
+Interactive API docs are at `http://localhost:8000/docs`, and the booking page is at `http://localhost:8000/book`.
+
+To fill an empty copy with demo services and a week of free times:
+
+```sh
+python scripts/seed_demo.py http://localhost:8000   # reads ADMIN_API_KEY from the environment
+```
+
+Running it again only adds days that have no free times left.
 
 ## Run it with Docker
 
@@ -77,6 +87,7 @@ All settings come from environment variables. See [.env.example](.env.example).
 
 | Method and path | Who | What it does |
 |---|---|---|
+| `GET /book` | Anyone | The customer booking page |
 | `GET /health` | Anyone | 200 if the app and database are up |
 | `GET /services` | Anyone | List services |
 | `POST /services` | Staff | Add a service: `{"name": "Haircut", "price": "25.00", "duration": 30}` |

@@ -127,6 +127,16 @@ ADMIN_API_KEY=<key> python evidence/after_check.py https://salon-booking-rescue-
 
 This sends the same requests that broke the prototype and checks every answer. The run recorded at handover is in [evidence/after_results.txt](evidence/after_results.txt), with 16 of 16 checks passing. Each run adds a few demo services, slots and bookings (customer "Ada"), so do not run it once real customers are using the system. Use a separate Railway environment instead.
 
+## Keeping the demo booking page usable
+
+The booking page at `/book` only shows times that are free and in the future, so the demo needs fresh slots. [scripts/seed_demo.py](scripts/seed_demo.py) adds four demo services if there are none, and hourly slots from 10:00 to 16:00 New York time, Monday to Saturday, for each of the next 7 days that has no free times yet. Run it about once a week from Git Bash, with the key taken from Railway's **Variables** and never typed into a file:
+
+```sh
+ADMIN_API_KEY=<key> python scripts/seed_demo.py https://salon-booking-rescue-production.up.railway.app
+```
+
+Visitors are asked to use made-up details. Clear old demo bookings with `DELETE /admin/bookings/{id}` if they pile up.
+
 ## Changing the code
 
 See [README.md](README.md) for running it locally, the tests, and adding a migration. In short:

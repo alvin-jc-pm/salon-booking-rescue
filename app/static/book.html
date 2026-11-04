@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book an appointment</title>
+<meta name="description" content="Pick a service and a time, and book in under a minute.">
+<style>
+  :root {
+    --bg: #f6f4f1;
+    --card: #ffffff;
+    --ink: #1f1d1a;
+    --muted: #6b665f;
+    --line: #e4dfd8;
+    --accent: #1f5f53;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3efec;
+    --error: #a3302a;
+    --error-soft: #fbeceb;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513;
+      --card: #201e1b;
+      --ink: #f1eee9;
+      --muted: #a8a299;
+      --line: #36322d;
+      --accent: #5fb3a1;
+      --accent-ink: #10201c;
+      --accent-soft: #1d2f2b;
+      --error: #f08a83;
+      --error-soft: #3a1f1d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.75rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .demo {
+    font-size: 0.875rem;
+    color: var(--muted);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 24px;
+  }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 1rem; margin: 0 0 12px; }
+  h2 .step {
+    display: inline-grid; place-items: center;
+    width: 24px; height: 24px; margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 0.8rem;
+  }
+  .options { display: grid; gap: 8px; }
+  .options.times { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  .day { font-size: 0.875rem; color: var(--muted); margin: 14px 0 6px; }
+  .day:first-child { margin-top: 0; }
+  .option input { position: absolute; opacity: 0; pointer-events: none; }
+  .option span {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .times .option span { justify-content: center; }
+  .option small { color: var(--muted); }
+  .option input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .option input:checked + span {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    font-weight: 600;
+  }
+  label.field { display: block; margin-bottom: 12px; font-size: 0.9rem; }
+  label.field input {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 11px 12px;
+    font: inherit; color: inherit;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  label.field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button {
+    width: 100%;
+    padding: 14px;
+    font: inherit; font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .empty, .note { color: var(--muted); margin: 0; }
+  .tz { font-size: 0.8rem; margin-bottom: 12px; }
+  .alert {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--error-soft);
+    color: var(--error);
+    margin-bottom: 16px;
+  }
+  .done h2 { font-size: 1.25rem; }
+  .done dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 16px 0; }
+  .done dt { color: var(--muted); }
+  .done dd { margin: 0; }
+  .link { background: none; color: var(--accent); width: auto; padding: 0; font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Book an appointment</h1>
+  <p class="lead">Pick a service and a time. It takes under a minute.</p>
+  <p class="demo">This is a demo. Please use a made-up name and phone number.</p>
+
+  <div id="error" class="alert" role="alert" hidden></div>
+
+  <form id="form" novalidate>
+    <section aria-labelledby="h-service">
+      <h2 id="h-service"><span class="step">1</span>Choose a service</h2>
+      <div id="services" class="options"><p class="note">Loading services...</p></div>
+    </section>
+
+    <section aria-labelledby="h-time">
+      <h2 id="h-time"><span class="step">2</span>Choose a time</h2>
+      <div id="slots"><p class="note">Loading times...</p></div>
+    </section>
+
+    <section aria-labelledby="h-details">
+      <h2 id="h-details"><span class="step">3</span>Your details</h2>
+      <label class="field">Name
+        <input id="name" name="customer_name" autocomplete="name" maxlength="100" required>
+      </label>
+      <label class="field">Phone
+        <input id="phone" name="phone" type="tel" autocomplete="tel" maxlength="20" required>
+      </label>
+      <button id="submit" type="submit" disabled>Book</button>
+    </section>
+  </form>
+
+  <section id="done" class="done" hidden aria-live="polite">
+    <h2>You're booked</h2>
+    <dl>
+      <dt>Service</dt><dd id="done-service"></dd>
+      <dt>Time</dt><dd id="done-time"></dd>
+      <dt>Name</dt><dd id="done-name"></dd>
+    </dl>
+    <button id="again" class="link" type="button">Make another booking</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const form = $("form"), errorBox = $("error"), submit = $("submit");
+  let services = [], slots = [];
+
+  const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+  const fullFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeStyle: "short" });
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.hidden = !message;
+    if (message) errorBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function el(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    for (const child of children) node.append(child);
+    return node;
+  }
+
+  function option(name, value, main, side) {
+    const input = el("input", { type: "radio", name, value, required: "" });
+    const span = el("span", {}, main);
+    if (side) span.append(el("small", {}, side));
+    return el("label", { class: "option" }, input, span);
+  }
+
+  async function getJSON(path) {
+    const response = await fetch(path, { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(path + " returned " + response.status);
+    return response.json();
+  }
+
+  function renderServices() {
+    const box = $("services");
+    box.replaceChildren();
+    if (!services.length) {
+      box.append(el("p", { class: "empty" }, "No services are available right now."));
+      return;
+    }
+    for (const s of services) {
+      box.append(option("service", s.id, s.name, "$" + s.price + " · " + s.duration + " min"));
+    }
+  }
+
+  function renderSlots() {
+    const box = $("slots");
+    box.replaceChildren();
+    if (!slots.length) {
+      box.append(el("p", { class: "empty" }, "No free times right now. Please check back soon."));
+      return;
+    }
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    box.append(el("p", { class: "note tz" }, "Times are shown in your time zone" + (zone ? " (" + zone.replace(/_/g, " ") + ")." : ".")));
+    let currentDay = "", grid = null;
+    for (const s of slots) {
+      const when = new Date(s.start_time);
+      const day = dayFormat.format(when);
+      if (day !== currentDay) {
+        currentDay = day;
+        box.append(el("p", { class: "day" }, day));
+        grid = el("div", { class: "options times" });
+        box.append(grid);
+      }
+      grid.append(option("slot", s.id, timeFormat.format(when)));
+    }
+  }
+
+  function updateButton() {
+    const ready = form.service && form.service.value && form.slot && form.slot.value &&
+      $("name").value.trim() && $("phone").value.trim();
+    submit.disabled = !ready;
+  }
+
+  async function load() {
+    try {
+      [services, slots] = await Promise.all([getJSON("/services"), getJSON("/slots")]);
+      renderServices();
+      renderSlots();
+    } catch (err) {
+      showError("We couldn't load the booking options. Please refresh the page.");
+    }
+    updateButton();
+  }
+
+  function explain(status, body) {
+    if (status === 409) return "Sorry, someone just booked that time. Please pick another.";
+    if (status === 404) return "That service or time is no longer available. Please pick again.";
+    if (status === 422 && body && Array.isArray(body.detail)) {
+      const fields = body.detail.map((d) => d.loc && d.loc[d.loc.length - 1]);
+      if (fields.includes("phone")) return "Please enter a valid phone number, using digits, spaces, brackets or dashes.";
+      if (fields.includes("customer_name")) return "Please enter your name.";
+    }
+    return "Something went wrong. Please try again.";
+  }
+
+  form.addEventListener("change", updateButton);
+  form.addEventListener("input", updateButton);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    showError("");
+    submit.disabled = true;
+    submit.textContent = "Booking...";
+    const payload = {
+      customer_name: $("name").value.trim(),
+      phone: $("phone").value.trim(),
+      service_id: Number(form.service.value),
+      slot_id: Number(form.slot.value),
+    };
+    try {
+      const response = await fetch("/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        showError(explain(response.status, body));
+        if (response.status === 409 || response.status === 404) await load();
+        return;
+      }
+      const service = services.find((s) => s.id === payload.service_id);
+      const slot = slots.find((s) => s.id === payload.slot_id);
+      $("done-service").textContent = service ? service.name : "";
+      $("done-time").textContent = slot ? fullFormat.format(new Date(slot.start_time)) : "";
+      $("done-name").textContent = payload.customer_name;
+      form.hidden = true;
+      $("done").hidden = false;
+    } catch (err) {
+      showError("We couldn't reach the server. Check your connection and try again.");
+    } finally {
+      submit.textContent = "Book";
+      updateButton();
+    }
+  });
+
+  $("again").addEventListener("click", async () => {
+    form.reset();
+    $("done").hidden = true;
+    form.hidden = false;
+    await load();
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
