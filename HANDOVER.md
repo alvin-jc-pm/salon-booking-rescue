@@ -5,6 +5,7 @@ This note is for whoever runs or changes the Salon Booking API next. It covers w
 ## Where it runs
 
 - **Live URL:** https://salon-booking-rescue-production.up.railway.app
+- **Booking page:** https://salon-booking-rescue-production.up.railway.app/book
 - **Health check:** https://salon-booking-rescue-production.up.railway.app/health
 - **API docs:** https://salon-booking-rescue-production.up.railway.app/docs
 - **Host:** Railway, project `artistic-vitality`, environment `production`. It has two services:
@@ -135,7 +136,7 @@ The booking page at `/book` only shows times that are free and in the future, so
 ADMIN_API_KEY=<key> python scripts/seed_demo.py https://salon-booking-rescue-production.up.railway.app
 ```
 
-Visitors are asked to use made-up details. Clear old demo bookings with `DELETE /admin/bookings/{id}` if they pile up.
+It was last run on 2026-11-04, which added the four services and 45 free times. Visitors are asked to use made-up details. Clear old demo bookings with `DELETE /admin/bookings/{id}` if they pile up.
 
 ## Changing the code
 

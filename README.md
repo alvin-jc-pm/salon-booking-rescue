@@ -6,7 +6,7 @@ An AI coding assistant wrote a small FastAPI booking API for a salon from a sing
 
 This repository fixes it one problem at a time, with one commit per fix and a test proving each failure is gone. The untouched prototype is the commit tagged `before`.
 
-The rescued version runs on Railway with a managed PostgreSQL database: https://salon-booking-rescue-production.up.railway.app (try `/health` or `/docs`). [HANDOVER.md](HANDOVER.md) explains how it is deployed, backed up and maintained.
+The rescued version runs on Railway with a managed PostgreSQL database. **Try it: [book an appointment](https://salon-booking-rescue-production.up.railway.app/book)**, or see the [API docs](https://salon-booking-rescue-production.up.railway.app/docs). [HANDOVER.md](HANDOVER.md) explains how it is deployed, backed up and maintained.
 
 Customers book at [`/book`](https://salon-booking-rescue-production.up.railway.app/book): pick a service, pick a free time, enter a name and phone number. It is one page of plain HTML, CSS and JavaScript ([app/static/book.html](app/static/book.html)) that calls the same public API as any other client, with no framework and no build step. It shows times in the visitor's time zone, explains every error the API can return in plain words, and reloads the free times when someone else takes a slot first.
 
